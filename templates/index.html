@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF 转 Word</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+</head>
+<body>
+    <main class="page">
+        <section class="header">
+            <div>
+                <h1>PDF 转 Word</h1>
+                <p>生成 Office 2007 可打开的图片版 DOCX</p>
+            </div>
+            <div class="status-pill" id="serverStatus">服务检查中</div>
+        </section>
+
+        <section class="panel">
+            <form id="convertForm" class="convert-form">
+                <div class="field">
+                    <label for="files">PDF 文件</label>
+                    <input id="files" name="files" type="file" accept="application/pdf,.pdf" multiple required>
+                </div>
+
+                <div class="field compact">
+                    <label for="mode">转换方式</label>
+                    <select id="mode" name="mode">
+                        <option value="editable" selected>可编辑文字版</option>
+                        <option value="image">图片兼容版</option>
+                    </select>
+                </div>
+
+                <div class="field compact" id="dpiField">
+                    <label for="dpi">清晰度</label>
+                    <select id="dpi" name="dpi">
+                        <option value="150">普通 150 DPI</option>
+                        <option value="220" selected>推荐 220 DPI</option>
+                        <option value="300">高清 300 DPI</option>
+                    </select>
+                </div>
+
+                <button type="submit" id="convertButton">开始转换</button>
+            </form>
+        </section>
+
+        <section class="alert" id="alert" hidden></section>
+
+        <section class="panel" id="resultPanel" hidden>
+            <div class="panel-title">
+                <h2>转换结果</h2>
+                <a class="button secondary" id="bundleLink" href="#" hidden>下载全部</a>
+            </div>
+            <div class="result-list" id="resultList"></div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

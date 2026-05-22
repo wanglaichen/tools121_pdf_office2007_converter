@@ -1,0 +1,60 @@
+# Gitee Go 默认识别的流水线文件名
+# 推送 vX.Y.Z Tag 触发
+
+version: '1.0'
+name: master-pipeline
+displayName: MasterPipeline
+
+variables:
+  EDGEONE_PROJECT_NAME: tools121-pdf-office2007-converter
+
+triggers:
+  trigger: auto
+  push:
+    tags:
+      include:
+        - ^v[0-9]+\.[0-9]+\.[0-9]+$
+
+stages:
+  - name: stage-build
+    displayName: CI-构建
+    strategy: naturally
+    trigger: auto
+    executor: []
+    steps:
+      - step: build@python
+        name: build_python
+        displayName: Python 构建
+        pythonVersion: '3.11'
+        commands:
+          - pip install -r requirements.txt
+          - python -c "from converter import convert_pdf_to_editable_docx, convert_pdf_to_office2007_docx; print('OK')"
+        caches:
+          - ~/.cache/pip
+        notify: []
+        strategy:
+          retry: '0'
+
+  - name: stage-deploy
+    displayName: CD-发布EdgeOne（手动）
+    strategy: naturally
+    trigger: manual
+    executor: []
+    steps:
+      - step: build@python
+        name: deploy_edgeone
+        displayName: 发布到 EdgeOne
+        pythonVersion: '3.11'
+        commands:
+          - set -e
+          - pip install -r requirements.txt
+          - |
+            if [ -z "$EDGEONE_API_TOKEN" ]; then
+              echo "错误：请在流水线变量中配置 EDGEONE_API_TOKEN 后再手动发布"
+              exit 1
+            fi
+            # 直接上传部署
+            npx edgeone@latest pages deploy ./ -n $EDGEONE_PROJECT_NAME -t $EDGEONE_API_TOKEN -e production
+        notify: []
+        strategy:
+          retry: '0'
