@@ -1,0 +1,96 @@
+name: CI/CD
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+concurrency:
+  group: cicd-release-${{ github.ref_name }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: '3.11'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        id: cache-pip
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        if: steps.cache-pip.outputs.cache-hit != 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Verify app imports
+        run: |
+          python -c "from converter import convert_pdf_to_editable_docx, convert_pdf_to_office2007_docx; print('Import OK')"
+
+      - name: Verify Flask app
+        run: |
+          python -c "from app import app; print('Flask app OK')"
+
+  deploy:
+    name: Deploy to EdgeOne
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    environment:
+      name: production
+      url: https://${{ vars.EDGEONE_PROJECT_NAME || 'tools121-pdf-office2007-converter' }}.edgeone.page
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Trigger EdgeOne Git deploy
+        env:
+          EDGEONE_DEPLOY_MODE: ${{ vars.EDGEONE_DEPLOY_MODE || 'git' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "ci: trigger EdgeOne deploy for ${{ github.ref_name }}"
+          git push origin HEAD:main
+          echo "已推送 main，EdgeOne 将自动拉取仓库并构建"
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
